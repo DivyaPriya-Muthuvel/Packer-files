@@ -1,17 +1,61 @@
 #cloud-config
 autoinstall:
   version: 1
+  locale: en_US.UTF-8
+  refresh-installer:
+      update: yes
+  keyboard:
+      layout: us
+  network:
+      network:
+          version: 2
+          ethernets:
+              eth0:
+                 dhcp4: yes
+  apt:
+      primary:
+          - arches: [default]
+            uri: http://archive.ubuntu.com/ubuntu/
+  storage:
+      swap:
+          size: 0
+      config:
+          - { type: disk, id: disk-0, ptable: gpt, wipe: superblock-recursive, grub_device: true }
+          - { type: partition, id: partition-0, number: 1, device: disk-0, size: 1M, wipe: superblock, flag: bios_grub }
+          - { type: partition, id: partition-1, number: 2, device: disk-0, size: 8192M, wipe: superblock, flag: boot }
+          - { type: partition, id: partition-2, number: 3, device: disk-0, size: 8192M, wipe: superblock, flag: swap }
+          - { type: partition, id: partition-3, number: 4, device: disk-0, size: -1, wipe: superblock }
+          - { type: format, id: format-0, volume: partition-1, fstype: xfs }
+          - { type: format, id: format-1, volume: partition-2, fstype: swap }
+          - { type: format, id: format-2, volume: partition-3, fstype: xfs }
+          - { type: mount, id: mount-0, device: format-0, path: /boot }
+          - { type: mount, id: mount-1, device: format-1, path: none }
+          - { type: mount, id: mount-2, device: format-2, path: / }
   identity:
     hostname: ubuntu-22-04
     username: tuto
     password: vagrant
+  ssh:
+    install-server: yes
+    allow-pw: yes
+  user-data:
+      disable_root: false
+  packages:
+      - ca-certificates
+      - cloud-guest-utils
+      - cloud-init
+      - curl
+      - e2fsprogs
+      - iproute2
+      - openssh-server
+      - perl
+      - python3
+      - rsync
+      - sudo
   early-commands:
     # otherwise packer tries to connect and exceed max attempts:
     - systemctl stop ssh.service
     - systemctl stop ssh.socket
-  ssh:
-    install-server: yes
-    allow-pw: yes
   late-commands:
     - |
       if [ -f /target/etc/netplan/00-installer-config.yaml ]; then
@@ -27,4 +71,3 @@ autoinstall:
         systemctl start hypervvssd
         systemctl start hypervkvpd
       fi
-
